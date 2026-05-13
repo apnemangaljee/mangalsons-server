@@ -1,22 +1,20 @@
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
-const path = require('path');
 
 const app = express();
 const port = process.env.PORT || 8000;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(__dirname)); 
 
-// Connect to the Permanent Neon Database
+// Connect to your Neon Cloud Database
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false }
 });
 
-// Create the inventory table if it doesn't exist
+// This part creates the new "shelves" (columns) for Cost and Stock
 const initDB = async () => {
     try {
         await pool.query(`
@@ -29,38 +27,24 @@ const initDB = async () => {
                 stock_qty INTEGER
             )
         `);
-        console.log("Cloud Database connected and ready!");
+        console.log("Cloud Database is updated with Cost and Stock columns!");
     } catch (err) {
-        console.error("Database connection error:", err);
+        console.error("Database error:", err);
     }
 };
 initDB();
 
-// 1. GET ALL INVENTORY
+// API to get the full list
 app.get('/api/inventory', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM products');
+        const result = await pool.query('SELECT * FROM products ORDER BY name ASC');
         res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// 2. GET SINGLE PRODUCT
-app.get('/api/product/:barcode', async (req, res) => {
-    try {
-        const result = await pool.query('SELECT * FROM products WHERE barcode_id = $1', [req.params.barcode]);
-        if (result.rows.length > 0) {
-            res.json(result.rows[0]);
-        } else {
-            res.status(404).json({ error: 'Product not found' });
-        }
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// 3. ADD OR UPDATE PRODUCT
+// API to save the new data (Cost, Selling, and Stock)
 app.post('/api/product/add', async (req, res) => {
     const { barcode_id, name, category, cost_price, selling_price, stock_qty } = req.body;
     try {
@@ -70,18 +54,17 @@ app.post('/api/product/add', async (req, res) => {
             ON CONFLICT (barcode_id) 
             DO UPDATE SET 
                 name = EXCLUDED.name,
-                category = EXCLUDED.category,
                 cost_price = EXCLUDED.cost_price,
                 selling_price = EXCLUDED.selling_price,
                 stock_qty = EXCLUDED.stock_qty
         `;
         await pool.query(query, [barcode_id, name, category, cost_price, selling_price, stock_qty]);
-        res.json({ message: 'Product saved permanently!' });
+        res.json({ message: 'Saved successfully!' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
 app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+    console.log(`Server is live on port ${port}`);
 });
