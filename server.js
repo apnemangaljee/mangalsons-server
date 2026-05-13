@@ -68,7 +68,32 @@ app.post('/api/product/add', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+// --- PHASE 1: CHECKOUT & BILLING SYSTEM ---
+app.post('/api/checkout', async (req, res) => {
+    const { total_amount, items } = req.body;
+    
+    try {
+        // 1. Save the final receipt to the 'sales' table
+        const saleResult = await pool.query(
+            'INSERT INTO sales (total_amount, items) VALUES ($1, $2) RETURNING id',
+            [total_amount, JSON.stringify(items)]
+        );
 
+        // 2. Deduct the stock for EVERY item in the shopping cart
+        for (let item of items) {
+            await pool.query(
+                'UPDATE products SET stock_qty = stock_qty - $1 WHERE barcode_id = $2',
+                [item.qty, item.barcode_id]
+            );
+        }
+
+        // 3. Tell the phone it was successful
+        res.json({ success: true, sale_id: saleResult.rows[0].id });
+        
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 app.listen(port, () => {
     console.log(`Server is live on port ${port}`);
 });
