@@ -94,6 +94,32 @@ app.post('/api/checkout', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+// --- PHASE 3: MANAGER ANALYTICS DASHBOARD ---
+app.get('/api/analytics', async (req, res) => {
+    try {
+        // 1. Calculate Today's Total Sales and Bill Count
+        const salesResult = await pool.query(`
+            SELECT COALESCE(SUM(total_amount), 0) as today_sales, COUNT(id) as total_bills 
+            FROM sales 
+            WHERE DATE(created_at) = CURRENT_DATE
+        `);
+        
+        // 2. Count how many items are running out of stock (<= 2)
+        const lowStockResult = await pool.query(`
+            SELECT COUNT(barcode_id) as low_stock_count 
+            FROM products 
+            WHERE stock_qty <= 2
+        `);
+
+        res.json({
+            today_sales: parseFloat(salesResult.rows[0].today_sales),
+            total_bills: parseInt(salesResult.rows[0].total_bills),
+            low_stock_count: parseInt(lowStockResult.rows[0].low_stock_count)
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 app.listen(port, () => {
     console.log(`Server is live on port ${port}`);
 });
