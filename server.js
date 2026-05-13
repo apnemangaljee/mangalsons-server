@@ -35,15 +35,19 @@ const initDB = async () => {
 initDB();
 
 // API to get the full list
-app.get('/api/inventory', async (req, res) => {
+// This is the code that "answers" the phone when the app scans a barcode
+app.get('/api/product/:barcode', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM products ORDER BY name ASC');
-        res.json(result.rows);
+        const result = await pool.query('SELECT * FROM products WHERE barcode_id = $1', [req.params.barcode]);
+        if (result.rows.length > 0) {
+            res.json(result.rows[0]); // This sends the price and stock back to the phone
+        } else {
+            res.status(404).json({ error: 'Product not found' });
+        }
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
-
 // API to save the new data (Cost, Selling, and Stock)
 app.post('/api/product/add', async (req, res) => {
     const { barcode_id, name, category, cost_price, selling_price, stock_qty } = req.body;
