@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mangal & Sons Admin</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 40px; background: #f0f2f5; color: #333; }
+        .container { display: flex; gap: 20px; }
+        .box { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); flex: 1; }
+        h2 { color: #0D47A1; margin-top: 0; border-bottom: 2px solid #eef; padding-bottom: 10px; }
+        input, select { display: block; width: 100%; padding: 12px; margin: 12px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        button { background: #0D47A1; color: white; border: none; padding: 15px; width: 100%; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        button:hover { background: #0b3c8a; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background-color: #f8f9fa; color: #0D47A1; }
+        .status-success { color: #2e7d32; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Part 1: Add New Product -->
+        <div class="box">
+            <h2>Add New Stock</h2>
+            <input type="text" id="barcode" placeholder="Scan Barcode (Key)">
+            <input type="text" id="name" placeholder="Item Name (e.g. 5-Star Double Door Fridge)">
+            <select id="category">
+                <option value="Electronics">Electronics</option>
+                <option value="Furniture">Furniture</option>
+                <option value="Home Appliances">Home Appliances</option>
+            </select>
+            <input type="number" id="cost" placeholder="Purchase Price (Cost)">
+            <input type="number" id="selling" placeholder="Selling Price (MRP)">
+            <input type="number" id="stock" placeholder="Stock Quantity">
+            <button onclick="saveProduct()">Add to Inventory</button>
+            <p id="status"></p>
+        </div>
+
+        <!-- Part 2: Current Inventory Table -->
+        <div class="box" style="flex: 2;">
+            <h2>Live Inventory</h2>
+            <button onclick="loadInventory()" style="width: auto; padding: 10px 20px; margin-bottom: 10px;">Refresh List</button>
+            <table id="inventoryTable">
+                <thead>
+                    <tr>
+                        <th>Barcode</th>
+                        <th>Name</th>
+                        <th>Category</th>
+                        <th>Price</th>
+                        <th>Stock</th>
+                    </tr>
+                </thead>
+                <tbody id="inventoryBody">
+                    <!-- Data will appear here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Save product to database
+        async function saveProduct() {
+            const data = {
+                barcode_id: document.getElementById('barcode').value,
+                name: document.getElementById('name').value,
+                category: document.getElementById('category').value,
+                cost_price: parseFloat(document.getElementById('cost').value),
+                selling_price: parseFloat(document.getElementById('selling').value),
+                stock_qty: parseInt(document.getElementById('stock').value),
+                is_gst_applicable: false
+            };
+
+            const response = await fetch('/api/product/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                document.getElementById('status').className = "status-success";
+                document.getElementById('status').innerText = "✅ Saved Successfully!";
+                document.querySelectorAll('input').forEach(i => i.value = '');
+                loadInventory(); // Refresh the table
+            }
+        }
+
+        // Load all products from database
+        async function loadInventory() {
+            const response = await fetch('/api/inventory');
+            const products = await response.json();
+            const body = document.getElementById('inventoryBody');
+            body.innerHTML = '';
+            
+            products.forEach(p => {
+                body.innerHTML += `
+                    <tr>
+                        <td>${p.barcode_id}</td>
+                        <td>${p.name}</td>
+                        <td>${p.category}</td>
+                        <td>₹${p.selling_price}</td>
+                        <td>${p.stock_qty}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Load list when page opens
+        window.onload = loadInventory;
+    </script>
+</body>
+</html>
