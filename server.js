@@ -162,7 +162,48 @@ app.get('/api/analytics', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+// ====================================================
+// 7. ACCOUNTANT EXPORT (NEW)
+// ====================================================
+app.get('/api/export/monthly', async (req, res) => {
+    try {
+        // Fetch this month's sales
+        const sales = await pool.query(`
+            SELECT id, total_amount, created_at 
+            FROM sales 
+            WHERE EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM CURRENT_DATE) 
+            AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE) 
+            ORDER BY created_at DESC
+        `);
 
+        // Fetch this month's expenses
+        const expenses = await pool.query(`
+            SELECT description, amount, created_at 
+            FROM expenses 
+            WHERE EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM CURRENT_DATE) 
+            AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE) 
+            ORDER BY created_at DESC
+        `);
+
+        // Fetch this month's Khata payments received
+        const payments = await pool.query(`
+            SELECT c.name, cp.amount, cp.payment_date 
+            FROM customer_payments cp 
+            JOIN customers c ON cp.customer_id = c.id 
+            WHERE EXTRACT(MONTH FROM cp.payment_date) = EXTRACT(MONTH FROM CURRENT_DATE) 
+            AND EXTRACT(YEAR FROM cp.payment_date) = EXTRACT(YEAR FROM CURRENT_DATE) 
+            ORDER BY cp.payment_date DESC
+        `);
+
+        res.json({
+            sales: sales.rows,
+            expenses: expenses.rows,
+            payments: payments.rows
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 // ====================================================
 // START SERVER
 // ====================================================
